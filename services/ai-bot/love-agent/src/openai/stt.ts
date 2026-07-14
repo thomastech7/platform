@@ -45,25 +45,6 @@ export class STT implements Stt {
     if (language === this.language) return
     if (!config.OpenaiProvideLanguage) return
     this.language = language
-
-    for (const [, connection] of this.connectionBySid) {
-      try {
-        connection.send(
-          JSON.stringify({
-            type: 'transcription_session.update',
-            session: {
-              input_audio_transcription: {
-                model: config.OpenAiTranscriptModel,
-                prompt,
-                language
-              }
-            }
-          })
-        )
-      } catch (e) {
-        console.error(e)
-      }
-    }
   }
 
   start (): void {
@@ -131,10 +112,9 @@ export class STT implements Stt {
     if (this.connectionBySid.has(sid)) return
 
     const stream = new AudioStream(track, 16000)
-    const ws = new WebSocket('wss://api.openai.com/v1/realtime?intent=transcription', {
+    const ws = new WebSocket('wss://api.openai.com/v1/realtime?model=gpt-realtime-2.1-mini', {
       headers: {
         Authorization: 'Bearer ' + config.OpenaiApiKey,
-        'OpenAI-Beta': 'realtime=v1',
         'User-Agent': 'LiveKit-Agents'
       }
     })
@@ -146,21 +126,23 @@ export class STT implements Stt {
     ws.on('open', () => {
       ws.send(
         JSON.stringify({
-          type: 'transcription_session.update',
+          type: 'session.update',
           session: {
-            input_audio_format: 'pcm16',
-            input_audio_transcription: {
-              model: config.OpenAiTranscriptModel,
-              prompt,
-              language: config.OpenaiProvideLanguage ? (this.language ?? 'en') : undefined
-            },
-            turn_detection: {
-              type: 'server_vad',
-              threshold: config.VadThreshold,
-              prefix_padding_ms: config.VadPrefixPaddingMs,
-              silence_duration_ms: config.VadSilenceDurationMs
-            },
-            include: ['item.input_audio_transcription.logprobs']
+            type: 'realtime',
+            output_modalities: ['text'],
+            audio: {
+              input: {
+                transcription: {
+                  model: 'gpt-realtime-whisper'
+                },
+                turn_detection: {
+                  type: 'server_vad',
+                  threshold: config.VadThreshold,
+                  prefix_padding_ms: config.VadPrefixPaddingMs,
+                  silence_duration_ms: config.VadSilenceDurationMs
+                }
+              }
+            }
           }
         })
       )
