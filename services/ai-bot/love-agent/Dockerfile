@@ -7,9 +7,8 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
 COPY package.json package.json
-COPY pnpm-lock.yaml pnpm-lock.yaml
 
-RUN pnpm install
+RUN pnpm install --no-lockfile
 COPY ./lib .
 
 EXPOSE 4012
